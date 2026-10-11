@@ -3,8 +3,8 @@
 For a given problem (demand or fare) this:
 
 1. Loads the chronological splits.
-2. Tunes each tree estimator (XGBoost, LightGBM) with Optuna on the validation
-   split, then fits the best configuration.
+2. Tunes each configured tree estimator with Optuna on the validation split,
+   then fits the best configuration.
 3. Logs params/metrics/model to MLflow (one run per estimator).
 4. Selects the best estimator by the configured validation metric.
 5. Evaluates the winner on the held-out test split.

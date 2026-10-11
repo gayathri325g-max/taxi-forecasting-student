@@ -1,9 +1,9 @@
 """Shared model-development utilities.
 
 Centralises regression metrics, loading of the split parquets into
-``(X, y)`` matrices, and an estimator factory for the two supported tree models
-(XGBoost and LightGBM). Keeping these here means the training orchestration,
-tuning and tests all share one source of truth and stay consistent.
+``(X, y)`` matrices, and an estimator factory for the configured tree models
+(XGBoost, LightGBM, Random Forest and CatBoost). Keeping these here means
+training orchestration, tuning and tests share one source of truth.
 """
 
 from __future__ import annotations
@@ -14,7 +14,9 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
+from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 
 from src.config import Config, get_config
@@ -126,7 +128,7 @@ def load_splits(
 def make_estimator(
     name: str, params: dict[str, Any] | None = None, *, random_state: int = 42
 ):
-    """Instantiate an XGBoost or LightGBM regressor with sensible defaults."""
+    """Instantiate a configured tree regressor with sensible defaults."""
     params = dict(params or {})
     if name == "xgboost":
         defaults = {
@@ -148,7 +150,28 @@ def make_estimator(
         }
         defaults.update(params)
         return LGBMRegressor(**defaults)
-    raise ValueError(f"Unsupported estimator: {name!r} (expected 'xgboost' or 'lightgbm')")
+    if name == "randomforest":
+        defaults = {
+            "n_estimators": 300,
+            "random_state": random_state,
+            "n_jobs": -1,
+        }
+        defaults.update(params)
+        return RandomForestRegressor(**defaults)
+    if name == "catboost":
+        defaults = {
+            "iterations": 300,
+            "loss_function": "RMSE",
+            "random_seed": random_state,
+            "thread_count": -1,
+            "verbose": False,
+        }
+        defaults.update(params)
+        return CatBoostRegressor(**defaults)
+    raise ValueError(
+        f"Unsupported estimator: {name!r} "
+        "(expected 'xgboost', 'lightgbm', 'randomforest' or 'catboost')"
+    )
 
 
 def fit_and_score(

@@ -44,8 +44,9 @@ claims about your trained models:
 | Demand forecaster | 8.70 pickups | 2.54 | 40.2% | 0.971 |
 | Fare predictor | $3.47 | $0.82 | 8.7% | 0.955 |
 
-Both cards identify `LGBMRegressor`. Training compares XGBoost and LightGBM, but
-these snapshot metrics describe the selected LightGBM models. The cards report
+Both cards identify `LGBMRegressor`. Training compares XGBoost, LightGBM,
+Random Forest and CatBoost, but these snapshot metrics describe the selected
+LightGBM models. The cards report
 registry version `n/a`; they do not establish an immutable registry version or
 that the currently served model is the same evaluated model.
 

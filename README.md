@@ -5,10 +5,11 @@ Python application for two NYC taxi prediction tasks:
 - **Demand:** pickup count for one pickup zone and hour.
 - **Fare:** `fare_amount` for one trip, not the full passenger bill.
 
-The repository includes data processing, XGBoost/LightGBM training, MLflow
-tracking, FastAPI serving, recursive batch forecasts, SHAP explanations,
-subgroup evaluation, drift detection, a Streamlit dashboard, and optional AWS
-infrastructure templates. It contains no datasets or trained model bundles.
+The repository includes data processing, XGBoost, LightGBM, Random Forest and
+CatBoost training, MLflow tracking, FastAPI serving, recursive batch forecasts,
+SHAP explanations, subgroup evaluation, drift detection, a Streamlit dashboard,
+and optional AWS infrastructure templates. It contains no datasets or trained
+model bundles.
 
 ## Start Locally
 

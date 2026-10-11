@@ -3,7 +3,7 @@
 data:
   # NYC TLC Yellow Taxi trip data sample to ingest.
   tlc_year: 2024
-  tlc_month: 1
+  tlc_month: 3
   base_url: "https://d37ci6vzurychx.cloudfront.net/trip-data"
   zone_lookup_url: "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
   raw_dir: "data/raw"
@@ -40,7 +40,7 @@ models:
   selection_metric: "rmse"
   estimators: ["xgboost", "lightgbm"]
   # MLflow Model Registry names for the best model per problem.
-  registry_demand: "taxi-demand-forecaster"
+  registry_demand: "taxi-demand-forecaster
   registry_fare: "taxi-fare-predictor"
   # Directory for non-MLflow artifacts (SHAP plots, model cards).
   artifacts_dir: "artifacts"

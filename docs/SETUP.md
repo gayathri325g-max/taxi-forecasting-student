@@ -3,12 +3,7 @@
 Run all commands from the repository root using Python 3.11. Allow several GB
 for packages, data and model artifacts; 16 GB RAM is recommended for full-data
 training. Commands below use Windows PowerShell and the explicit virtual
-environment interpreter. On other systems use the corresponding `.venv/bin/python`.
-
-## 1. Environment and Tests
-
-```powershell
-py -3.11 --version
+environment interpreter. On other systems use
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -71,13 +66,18 @@ included, but overwrites the notebook. Do not run it after adding work you need.
 Start with one tuning trial per estimator on each problem:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.train_models --n-trials 1
+.\.venv\Scripts\python.exe -m scripts.train_models --n-trials 1 the corresponding `.venv/bin/python`.
+
+## 1. Environment and Tests
+
+```powershell
+py -3.11 --version
 ```
 
-Both XGBoost and LightGBM use the full splits. This is still substantive
-training, not a tiny synthetic example. Omitting `--n-trials` uses the configured
-25 trials. The winner is selected by validation RMSE; candidate test scores are
-logged but must not be used to tune or select models.
+XGBoost, LightGBM, Random Forest and CatBoost use the full splits. This is still
+substantive training, not a tiny synthetic example. Omitting `--n-trials` uses
+the configured 25 trials. The winner is selected by validation RMSE; candidate
+test scores are logged but must not be used to tune or select models.
 
 The default tracking store is `sqlite:///mlflow.db`, with artifacts under
 `mlruns/`. Winners register as `taxi-demand-forecaster` and `taxi-fare-predictor`.

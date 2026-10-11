@@ -51,16 +51,51 @@ MAE = sum of absolute errors / 5 =
 Mean squared error = sum of squared errors / 5 =
 RMSE = square root of mean squared error =
 ```
+Using Error = Actual fare − Shared prediction:
+
+Trip	Actualfare	Sharedprediction  Error 	AbsoluteError	  SquaredError
+A	   $10	      $12	            -$2	   $2	              4
+B	   $15	      $13	            +$2	   $2	              4
+C	   $20	      $22	            -$2	   $2	              4
+D	   $30	      $40	            -$10	   $10	           100
+E	   $25	      $23	             +$2	   $2	              4
+
+Calculations
+
+Sum of signed errors:  -2 + (+2) + -2 + (+2) + 10 = 10
+
+Mean signed error: 10/5 = 2
+
+MAE: (2+2+2+10+2)/5 = 18/5 = 3.6
+
+Mean squared error: (4+4+4+4+100)/5 = 116/5 = 23.2
+
+RMSE: sqrt(23.2)=4.82
+	​
+
 
 ## Part C: Interpret the Baseline
 
 1. What information can the mean signed error hide?
+The mean signed error can hide individual prediction errors because positive and negative errors cancel each other out. For example, Trips A, B, C, and E have errors of -2, +2, -2, and +2, which partly cancel. A mean error of -2 therefore does not mean every prediction was only $2 off.
 2. What does MAE mean for these five predictions?
+The MAE = $3.60 means that, on average, the predictions were $3.60 away from the actual fare, ignoring whether the prediction was too high or too low.
 3. Why is RMSE larger than MAE here?
+RMSE squares each error before averaging. This gives more weight to large errors. Trip D has a $10 error, which becomes \(10^2 = 100\), substantially increasing RMSE. Therefore, RMSE (4.82) > MAE (3.60).
 4. Which trip contributes most to RMSE, and why?
+Trip D contributes the most because its error is -$10, much larger than the $2 errors on the other trips. After squaring, its contribution is 100, compared with only 4 for each other trip.
 5. Which operational groups should be checked separately before drawing a
    broad conclusion?
+You should check groups where prediction behavior might differ, such as:
 
+Short vs. long trips
+Peak vs. off-peak hours
+Weekdays vs. weekends
+Different geographic/route areas
+Low-fare vs. high-fare trips
+Different vehicle/service types, if applicable
+
+This helps determine whether the overall MAE/RMSE is being driven by a particular operational group rather than representing performance across all trips.
 ### Verify After Calculating
 
 The recording verifies the hand calculation with the project's metric helpers.

@@ -9,7 +9,7 @@
 Before running the pipeline, record what you expect it to do:
 
 ```text
-The pipeline will reuse the configured January 2024 source files, clean the
+The pipeline will reuse the configured March 2024 source files, clean the
 trips, create hourly demand, generate demand and fare features, split both
 tables by time, and write a summary.
 ```
@@ -17,7 +17,7 @@ tables by time, and write a summary.
 ## Task 1: Verify Inputs and Configuration
 
 1. Confirm the repository root and project interpreter.
-2. Confirm both January 2024 files exist under `data/raw`.
+2. Confirm both March 2024 files exist under `data/raw`.
 3. Inspect the configured period, directories, cleaning bounds, split fractions,
    lags, and rolling windows in `config/config.yaml`.
 
@@ -25,7 +25,7 @@ If raw inputs are missing on a fresh checkout, acquire and build them once with
 the following command (requires internet), then use Task 2 for the cached rerun:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.run_pipeline --year 2024 --month 1
+.\.venv\Scripts\python.exe -m scripts.run_pipeline --year 2024 --month 3
 ```
 
 ## Task 2: Run the Pipeline

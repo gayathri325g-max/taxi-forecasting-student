@@ -8,11 +8,12 @@ one pickup-zone/hour row including zero-count hours. Demand history is shifted
 before lag and rolling features are calculated. Both branches use chronological
 80/10/10 row splits by default.
 
-Training compares XGBoost and LightGBM using validation RMSE. Each estimator
-logs parameters, validation/test scores and its model in MLflow. The selected
-winner receives SHAP plots and a model card. The training command registers
-winners by default; `--no-register` skips registration while retaining tracked
-runs and artifacts. SQLite holds metadata; `mlruns/` holds artifact files.
+Training compares XGBoost, LightGBM, Random Forest and CatBoost using validation
+RMSE. Each estimator logs parameters, validation/test scores and its model in
+MLflow. The selected winner receives SHAP plots and a model card. The training
+command registers winners by default; `--no-register` skips registration while
+retaining tracked runs and artifacts. SQLite holds metadata; `mlruns/` holds
+artifact files.
 
 ## Serving
 

@@ -62,13 +62,17 @@ def _demand_xy(clean_trips_df):
     return common.split_to_xy(feats, "demand")
 
 
-@pytest.mark.parametrize("estimator", ["xgboost", "lightgbm"])
+@pytest.mark.parametrize(
+    "estimator",
+    ["xgboost", "lightgbm", "randomforest", "catboost"],
+)
 def test_fit_and_score_produces_finite_metrics(clean_trips_df, estimator):
     X, y = _demand_xy(clean_trips_df)
     half = len(X) // 2
+    params = {"iterations": 20} if estimator == "catboost" else {"n_estimators": 20}
     model, metrics = common.fit_and_score(
         estimator,
-        {"n_estimators": 20},
+        params,
         X.iloc[:half],
         y.iloc[:half],
         X.iloc[half:],
@@ -79,11 +83,15 @@ def test_fit_and_score_produces_finite_metrics(clean_trips_df, estimator):
         assert math.isfinite(metrics[key])
 
 
-def test_tune_estimator_single_trial(clean_trips_df):
+@pytest.mark.parametrize(
+    "estimator",
+    ["xgboost", "lightgbm", "randomforest", "catboost"],
+)
+def test_tune_estimator_single_trial(clean_trips_df, estimator):
     X, y = _demand_xy(clean_trips_df)
     half = len(X) // 2
     result = tuning.tune_estimator(
-        "lightgbm",
+        estimator,
         X.iloc[:half],
         y.iloc[:half],
         X.iloc[half:],

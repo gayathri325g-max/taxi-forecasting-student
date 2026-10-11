@@ -45,6 +45,22 @@ def _suggest_params(trial: optuna.Trial, estimator: str) -> dict[str, Any]:
             "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
             "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
         }
+    if estimator == "randomforest":
+        return {
+            "n_estimators": trial.suggest_int("n_estimators", 100, 600, step=50),
+            "max_depth": trial.suggest_int("max_depth", 5, 40),
+            "max_features": trial.suggest_float("max_features", 0.5, 1.0),
+            "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+        }
+    if estimator == "catboost":
+        return {
+            "iterations": trial.suggest_int("iterations", 100, 600, step=50),
+            "depth": trial.suggest_int("depth", 4, 10),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
+            "random_strength": trial.suggest_float("random_strength", 0.0, 2.0),
+        }
     raise ValueError(f"Unsupported estimator: {estimator!r}")
 
 
