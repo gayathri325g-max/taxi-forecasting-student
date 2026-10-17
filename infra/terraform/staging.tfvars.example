@@ -1,7 +1,7 @@
 # Optional deployment template. Applying Terraform creates billable base resources
 # even when every optional feature below is disabled. Use your own AWS account,
 # credentials, resource prefix, state and reviewed image before any plan/apply.
-aws_region   = "us-east-1"
+aws_region   = "ap-south-2"
 environment  = "staging"
 project_name = "taxi-forecasting-personal"
 
@@ -11,5 +11,5 @@ enable_datalake   = false
 enable_athena     = false
 enable_cicd       = false
 
-github_repo_url = ""
-alert_email     = ""
+github_repo_url = "https://github.com/gayathri325g-max/model-engineering.git"
+alert_email     = "gayathri325.g@gmail.com"

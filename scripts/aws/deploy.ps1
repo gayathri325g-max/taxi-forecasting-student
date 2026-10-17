@@ -23,7 +23,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Region = "us-east-1",
+    [string]$Region = "ap-south-2",
     [string]$Tag = "latest",
     [string]$TerraformVarFile,
     [switch]$AllowDestroy

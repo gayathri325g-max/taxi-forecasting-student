@@ -40,7 +40,7 @@ models:
   selection_metric: "rmse"
   estimators: ["xgboost", "lightgbm"]
   # MLflow Model Registry names for the best model per problem.
-  registry_demand: "taxi-demand-forecaster
+  registry_demand: "taxi-demand-forecaster"
   registry_fare: "taxi-fare-predictor"
   # Directory for non-MLflow artifacts (SHAP plots, model cards).
   artifacts_dir: "artifacts"
