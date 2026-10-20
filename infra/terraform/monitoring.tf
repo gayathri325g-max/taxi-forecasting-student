@@ -2,11 +2,10 @@
 # Operations — Monitoring, Drift Detection & Retraining (hybrid, pay-per-use)
 #
 # Everything here is gated on var.enable_monitoring and is pay-per-use: an S3
-# bucket for captured inference data + drift reports, an SNS alert topic, a
-# Kinesis Firehose that ships the API's prediction-capture logs to S3, CloudWatch
-# alarms + dashboard, a SageMaker execution role for the drift/retraining jobs,
-# and an EventBridge schedule that triggers the SageMaker retraining pipeline
-# weekly when retrain_pipeline_arn is set.
+# bucket for drift reports, an SNS alert topic, CloudWatch alarms + dashboard,
+# a SageMaker execution role for the drift/retraining jobs, and an EventBridge
+# schedule that triggers the SageMaker retraining pipeline weekly when
+# retrain_pipeline_arn is set.
 #
 # No always-on SageMaker endpoint is created — serving stays on ECS Fargate.
 # =============================================================================
@@ -21,7 +20,7 @@ locals {
   drift_enabled = var.enable_monitoring && var.monitoring_image_uri != "" ? 1 : 0
 }
 
-# --- S3: captured inference data + drift reports ------------------------------
+# --- S3: drift reports --------------------------------------------------------
 resource "aws_s3_bucket" "monitoring" {
   count         = local.monitoring_enabled
   bucket        = "${local.name}-monitoring-${data.aws_caller_identity.current.account_id}"
@@ -55,111 +54,84 @@ resource "aws_s3_bucket_lifecycle_configuration" "monitoring" {
   }
 }
 
-# --- SNS: alerts (drift, API 5xx, retraining) ---------------------------------
-resource "aws_sns_topic" "alerts" {
-  count = local.monitoring_enabled
-  name  = "${local.name}-alerts"
-}
-
-resource "aws_sns_topic_subscription" "alerts_email" {
-  count     = local.monitoring_enabled
-  topic_arn = aws_sns_topic.alerts[0].arn
-  protocol  = "email"
-  endpoint  = var.alert_email
-}
-
-# --- Kinesis Firehose: prediction-capture logs -> S3 --------------------------
-data "aws_iam_policy_document" "firehose_assume" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["firehose.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "firehose" {
-  count              = local.monitoring_enabled
-  name               = "${local.name}-firehose"
-  assume_role_policy = data.aws_iam_policy_document.firehose_assume.json
-}
-
-resource "aws_iam_role_policy" "firehose_s3" {
-  count = local.monitoring_enabled
-  name  = "${local.name}-firehose-s3"
-  role  = aws_iam_role.firehose[0].id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:AbortMultipartUpload",
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:ListBucketMultipartUploads",
-          "s3:PutObject"
-        ]
-        Resource = [
-          aws_s3_bucket.monitoring[0].arn,
-          "${aws_s3_bucket.monitoring[0].arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "capture" {
+# --- Lambda: capture prediction logs to S3 -----------------------------------
+data "archive_file" "capture_logs" {
   count       = local.monitoring_enabled
-  name        = "${local.name}-capture"
-  destination = "extended_s3"
-
-  extended_s3_configuration {
-    role_arn            = aws_iam_role.firehose[0].arn
-    bucket_arn          = aws_s3_bucket.monitoring[0].arn
-    prefix              = "captured/"
-    error_output_prefix = "captured-errors/"
-    buffering_size      = 5
-    buffering_interval  = 300
-    compression_format  = "GZIP"
-  }
+  type        = "zip"
+  source_file = "${path.module}/capture_logs.py"
+  output_path = "${path.module}/capture_logs.zip"
 }
 
-# --- CloudWatch Logs -> Firehose subscription (prediction-capture records) -----
-data "aws_iam_policy_document" "logs_to_firehose_assume" {
+data "aws_iam_policy_document" "capture_logs_assume" {
   statement {
     actions = ["sts:AssumeRole"]
+
     principals {
       type        = "Service"
-      identifiers = ["logs.amazonaws.com"]
+      identifiers = ["lambda.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role" "logs_to_firehose" {
+resource "aws_iam_role" "capture_logs" {
   count              = local.monitoring_enabled
-  name               = "${local.name}-logs-to-firehose"
-  assume_role_policy = data.aws_iam_policy_document.logs_to_firehose_assume.json
+  name               = "${local.name}-capture-lambda"
+  assume_role_policy = data.aws_iam_policy_document.capture_logs_assume.json
 }
 
-resource "aws_iam_role_policy" "logs_to_firehose" {
+resource "aws_iam_role_policy" "capture_logs" {
   count = local.monitoring_enabled
-  name  = "${local.name}-logs-to-firehose"
-  role  = aws_iam_role.logs_to_firehose[0].id
+  name  = "${local.name}-capture-lambda"
+  role  = aws_iam_role.capture_logs[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["firehose:PutRecord", "firehose:PutRecordBatch"]
-        Resource = [aws_kinesis_firehose_delivery_stream.capture[0].arn]
+        Action   = ["s3:PutObject"]
+        Resource = ["${aws_s3_bucket.monitoring[0].arn}/captured/*"]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = ["*"]
       }
     ]
   })
+}
+
+resource "aws_lambda_function" "capture" {
+  count         = local.monitoring_enabled
+  function_name = "${local.name}-capture"
+  role          = aws_iam_role.capture_logs[0].arn
+  runtime       = "python3.12"
+  handler       = "capture_logs.lambda_handler"
+
+  filename         = data.archive_file.capture_logs[0].output_path
+  source_code_hash = data.archive_file.capture_logs[0].output_base64sha256
+
+  timeout     = 30
+  memory_size = 128
+
+  environment {
+    variables = {
+      CAPTURE_BUCKET = aws_s3_bucket.monitoring[0].bucket
+    }
+  }
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_capture" {
+  count         = local.monitoring_enabled
+  statement_id  = "AllowCloudWatchLogsInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.capture[0].function_name
+  principal     = "logs.amazonaws.com"
+  source_arn    = "${aws_cloudwatch_log_group.api.arn}:*"
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "capture" {
@@ -167,8 +139,25 @@ resource "aws_cloudwatch_log_subscription_filter" "capture" {
   name            = "${local.name}-capture"
   log_group_name  = aws_cloudwatch_log_group.api.name
   filter_pattern  = "{ $.event = \"prediction\" }"
-  destination_arn = aws_kinesis_firehose_delivery_stream.capture[0].arn
-  role_arn        = aws_iam_role.logs_to_firehose[0].arn
+  destination_arn = aws_lambda_function.capture[0].arn
+
+  depends_on = [
+    aws_lambda_permission.allow_cloudwatch_capture
+  ]
+}
+
+
+# --- SNS: alerts (drift, API 5xx, retraining) ---------------------------------
+resource "aws_sns_topic" "alerts" {
+  count = local.monitoring_enabled
+  name  = "${local.name}-alerts"
+}
+
+resource "aws_sns_topic_subscription" "alerts_email" {
+  count     = local.monitoring_enabled == 1 && trimspace(var.alert_email) != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alerts[0].arn
+  protocol  = "email"
+  endpoint  = trimspace(var.alert_email)
 }
 
 # --- SageMaker: execution role for drift + retraining jobs --------------------
@@ -404,7 +393,7 @@ resource "aws_scheduler_schedule" "retrain" {
 
 # --- EventBridge Scheduler: drift-detection Processing job (weekly) ------------
 # Runs scripts/monitoring/run_drift_job.py as a one-off SageMaker Processing job:
-# reads Firehose-captured records from S3, writes drift_metrics.json back to S3,
+# reads inference records from S3, writes drift_metrics.json back to S3,
 # and publishes drift metrics to CloudWatch (feeding the existing drift alarm).
 resource "aws_scheduler_schedule" "drift" {
   count = local.drift_enabled

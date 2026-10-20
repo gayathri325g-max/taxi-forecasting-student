@@ -44,9 +44,9 @@ output "sagemaker_role_arn" {
   value       = var.enable_monitoring ? aws_iam_role.sagemaker[0].arn : ""
 }
 
-output "capture_firehose_name" {
-  description = "Kinesis Firehose delivery stream shipping capture logs to S3."
-  value       = var.enable_monitoring ? aws_kinesis_firehose_delivery_stream.capture[0].name : ""
+output "capture_lambda_name" {
+  description = "Lambda function capturing prediction logs to S3."
+  value       = var.enable_monitoring ? aws_lambda_function.capture[0].function_name : ""
 }
 
 output "drift_schedule_name" {

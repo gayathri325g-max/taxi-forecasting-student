@@ -48,13 +48,13 @@ variable "task_memory" {
 
 # --- monitoring & retraining ----------------------------------------
 variable "enable_monitoring" {
-  description = "Master switch for the monitoring stack (S3, SNS, alarms, Firehose, schedules)."
+  description = "Master switch for the monitoring stack (S3, SNS, alarms, capture Lambda, schedules)."
   type        = bool
   default     = false
 }
 
 variable "alert_email" {
-  description = "Email address subscribed to the SNS alerts topic (drift / API 5xx / retrain)."
+  description = "Optional email address subscribed to SNS alerts (drift / API 5xx / retrain); leave empty to skip the subscription."
   type        = string
   default     = ""
 }
