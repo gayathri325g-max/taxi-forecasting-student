@@ -1,10 +1,9 @@
-
 import base64
 import gzip
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -20,23 +19,15 @@ def lambda_handler(event, context):
     if logs.get("messageType") == "CONTROL_MESSAGE":
         return {"status": "control_message"}
 
-    prediction_events = [
-        item for item in logs.get("logEvents", [])
-        if item.get("message")
-    ]
+    prediction_events = [item for item in logs.get("logEvents", []) if item.get("message")]
 
     if not prediction_events:
         return {"status": "no_events"}
 
-    now = datetime.now(timezone.utc)
-    key = (
-        f"captured/{now:%Y/%m/%d}/"
-        f"{uuid.uuid4().hex}.json"
-    )
+    now = datetime.now(UTC)
+    key = f"captured/{now:%Y/%m/%d}/" f"{uuid.uuid4().hex}.json"
 
-    body = "\n".join(
-        item["message"] for item in prediction_events
-    ) + "\n"
+    body = "\n".join(item["message"] for item in prediction_events) + "\n"
 
     s3.put_object(
         Bucket=BUCKET,
