@@ -49,8 +49,13 @@ output "capture_lambda_name" {
   value       = var.enable_monitoring ? aws_lambda_function.capture[0].function_name : ""
 }
 
+output "drift_publisher_lambda_name" {
+  description = "Lambda function publishing drift report summaries to CloudWatch."
+  value       = var.enable_monitoring ? aws_lambda_function.publish_drift_metrics[0].function_name : ""
+}
+
 output "drift_schedule_name" {
-  description = "EventBridge Scheduler that starts the weekly drift-detection SageMaker Processing job (empty unless monitoring_image_uri is set)."
+  description = "EventBridge Scheduler that starts the drift-detection SageMaker Processing job (empty unless monitoring_image_uri is set)."
   value       = local.drift_enabled == 1 ? aws_scheduler_schedule.drift[0].name : ""
 }
 

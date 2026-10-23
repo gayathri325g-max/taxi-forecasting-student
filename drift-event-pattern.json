@@ -1,0 +1,8 @@
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {"name": ["taxi-w5-student-monitoring-816772454738"]},
+    "object": {"key": [{"prefix": "drift-reports/"}]}
+  }
+}

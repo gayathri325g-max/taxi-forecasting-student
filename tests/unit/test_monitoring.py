@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.monitoring.run_drift_job import _cloudwatch_metric_data
+from infra.terraform.publish_drift_metrics import _metric_data
 from src.monitoring import (
     compute_drift,
     performance_degradation,
@@ -74,6 +75,33 @@ def test_cloudwatch_metric_data_includes_aggregate_and_problem_series():
             "Dimensions": [{"Name": "Problem", "Value": "fare"}],
         },
     ]
+
+
+def test_drift_publisher_maps_report_to_aggregate_and_problem_metrics():
+    report = {
+        "problem": "fare",
+        "n_drifted": 2,
+        "share_drifted": 0.5,
+        "features": [{"psi": 0.1}, {"psi": 0.7}],
+    }
+
+    metric_data = _metric_data(report)
+
+    assert [metric["MetricName"] for metric in metric_data] == [
+        "FeaturesDrifted",
+        "ShareDrifted",
+        "MaxPSI",
+        "FeaturesDrifted",
+        "ShareDrifted",
+        "MaxPSI",
+    ]
+    assert [metric["Value"] for metric in metric_data[:3]] == [2.0, 0.5, 0.7]
+    assert all(metric.get("Dimensions") == [{"Name": "Problem", "Value": "fare"}]
+               for metric in metric_data[3:])
+
+
+def test_drift_publisher_skips_reports_without_current_data():
+    assert _metric_data({"problem": "fare", "status": "no_data"}) == []
 
 
 def test_evaluate_performance_and_degradation():

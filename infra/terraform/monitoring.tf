@@ -146,6 +146,123 @@ resource "aws_cloudwatch_log_subscription_filter" "capture" {
   ]
 }
 
+# --- EventBridge + Lambda: publish S3 drift reports to CloudWatch ------------
+data "archive_file" "publish_drift_metrics" {
+  count       = local.monitoring_enabled
+  type        = "zip"
+  source_file = "${path.module}/publish_drift_metrics.py"
+  output_path = "${path.module}/publish_drift_metrics.zip"
+}
+
+data "aws_iam_policy_document" "publish_drift_metrics_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "publish_drift_metrics" {
+  count              = local.monitoring_enabled
+  name               = "${local.name}-drift-publisher-lambda"
+  assume_role_policy = data.aws_iam_policy_document.publish_drift_metrics_assume.json
+}
+
+resource "aws_iam_role_policy" "publish_drift_metrics" {
+  count = local.monitoring_enabled
+  name  = "${local.name}-drift-publisher-lambda"
+  role  = aws_iam_role.publish_drift_metrics[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = ["${aws_s3_bucket.monitoring[0].arn}/drift-reports/*"]
+      },
+      {
+        Effect = "Allow"
+        Action = ["cloudwatch:PutMetricData"]
+        Resource = ["*"]
+        Condition = {
+          StringEquals = {
+            "cloudwatch:namespace" = "TaxiForecasting/Drift"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = ["*"]
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "publish_drift_metrics" {
+  count         = local.monitoring_enabled
+  function_name = "${local.name}-drift-publisher"
+  role          = aws_iam_role.publish_drift_metrics[0].arn
+  runtime       = "python3.12"
+  handler       = "publish_drift_metrics.lambda_handler"
+
+  filename         = data.archive_file.publish_drift_metrics[0].output_path
+  source_code_hash = data.archive_file.publish_drift_metrics[0].output_base64sha256
+
+  timeout     = 30
+  memory_size = 128
+}
+
+resource "aws_s3_bucket_notification" "monitoring" {
+  count  = local.monitoring_enabled
+  bucket = aws_s3_bucket.monitoring[0].id
+
+  eventbridge = true
+}
+
+resource "aws_cloudwatch_event_rule" "drift_report_uploaded" {
+  count = local.monitoring_enabled
+  name  = "${local.name}-drift-report-uploaded"
+
+  event_pattern = jsonencode({
+    source        = ["aws.s3"]
+    "detail-type" = ["Object Created"]
+    detail = {
+      bucket = {
+        name = [aws_s3_bucket.monitoring[0].bucket]
+      }
+      object = {
+        key = [{ prefix = "drift-reports/" }]
+      }
+    }
+  })
+
+  depends_on = [aws_s3_bucket_notification.monitoring]
+}
+
+resource "aws_cloudwatch_event_target" "publish_drift_metrics" {
+  count = local.monitoring_enabled
+  rule  = aws_cloudwatch_event_rule.drift_report_uploaded[0].name
+  arn   = aws_lambda_function.publish_drift_metrics[0].arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge_drift_publish" {
+  count         = local.monitoring_enabled
+  statement_id  = "AllowEventBridgeDriftReport"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.publish_drift_metrics[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.drift_report_uploaded[0].arn
+}
+
 
 # --- SNS: alerts (drift, API 5xx, retraining) ---------------------------------
 resource "aws_sns_topic" "alerts" {
@@ -183,8 +300,8 @@ resource "aws_iam_role_policy_attachment" "sagemaker_full" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
 }
 
-# Extra permissions the jobs need: read/write monitoring S3, publish CloudWatch
-# metrics, pull/push ECR images, and roll the ECS service after retraining.
+# Extra permissions the jobs need: read/write monitoring S3, pull/push ECR
+# images, and roll the ECS service after retraining.
 resource "aws_iam_role_policy" "sagemaker_extra" {
   count = local.monitoring_enabled
   name  = "${local.name}-sagemaker-extra"
@@ -200,11 +317,6 @@ resource "aws_iam_role_policy" "sagemaker_extra" {
           aws_s3_bucket.monitoring[0].arn,
           "${aws_s3_bucket.monitoring[0].arn}/*"
         ]
-      },
-      {
-        Effect   = "Allow"
-        Action   = ["cloudwatch:PutMetricData"]
-        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -394,7 +506,7 @@ resource "aws_scheduler_schedule" "retrain" {
 # --- EventBridge Scheduler: drift-detection Processing job (weekly) ------------
 # Runs scripts/monitoring/run_drift_job.py as a one-off SageMaker Processing job:
 # reads inference records from S3, writes drift_metrics.json back to S3,
-# and publishes drift metrics to CloudWatch (feeding the existing drift alarm).
+# then the S3 Object Created event invokes the publisher Lambda above.
 resource "aws_scheduler_schedule" "drift" {
   count = local.drift_enabled
   name  = "${local.name}-drift"
@@ -419,6 +531,7 @@ resource "aws_scheduler_schedule" "drift" {
           "--current-s3", "s3://${aws_s3_bucket.monitoring[0].bucket}/captured/",
           "--output-dir", "/opt/ml/processing/output",
           "--namespace", "TaxiForecasting/Drift",
+          "--no-cloudwatch",
         ]
       }
       ProcessingResources = {

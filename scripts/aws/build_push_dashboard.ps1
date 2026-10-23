@@ -18,7 +18,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Region = "us-east-1",
+    [string]$Region = "ap-south-2",
     [string]$Tag = "latest",
     # Dashboard ECR repository URL. If omitted, read from the Terraform output.
     [string]$RepoUrl

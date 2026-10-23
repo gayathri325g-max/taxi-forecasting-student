@@ -278,6 +278,9 @@ def main(argv: list[str] | None = None) -> int:
         region=args.region,
         pipeline_name=args.pipeline_name,
     )
+    # SageMaker Experiments is unavailable in some regions (including
+    # ap-south-2); omit the SDK-generated experiment config from the definition.
+    pipeline.pipeline_experiment_config = None
     if args.upsert:
         pipeline.upsert(role_arn=args.role_arn)
         print(f"Upserted pipeline: {args.pipeline_name}")

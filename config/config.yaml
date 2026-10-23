@@ -38,7 +38,7 @@ models:
   n_trials: 25
   # Metric used to select the best model on the validation split.
   selection_metric: "rmse"
-  estimators: ["xgboost", "lightgbm"]
+  estimators: ["xgboost", "lightgbm", "catboost", "random_forest"]
   # MLflow Model Registry names for the best model per problem.
   registry_demand: "taxi-demand-forecaster"
   registry_fare: "taxi-fare-predictor"

@@ -95,7 +95,10 @@ def test_evaluate_models_compares_candidate_with_seed_registry(monkeypatch, tmp_
 
 def test_pipeline_cli_prints_definition_without_upsert(monkeypatch, capsys):
     class FakePipeline:
+        pipeline_experiment_config = object()
+
         def definition(self):
+            assert self.pipeline_experiment_config is None
             return '{"name": "taxi-forecasting-retrain"}'
 
     monkeypatch.setattr(pipeline, "build_pipeline", lambda **_kwargs: FakePipeline())
@@ -123,8 +126,10 @@ def test_pipeline_cli_upserts_when_requested(monkeypatch):
     calls = []
 
     class FakePipeline:
+        pipeline_experiment_config = object()
+
         def upsert(self, *, role_arn):
-            calls.append(role_arn)
+            calls.append((role_arn, self.pipeline_experiment_config))
 
     monkeypatch.setattr(pipeline, "build_pipeline", lambda **_kwargs: FakePipeline())
 
@@ -145,7 +150,7 @@ def test_pipeline_cli_upserts_when_requested(monkeypatch):
     )
 
     assert result == 0
-    assert calls == ["arn:aws:iam::123456789012:role/retrain"]
+    assert calls == [("arn:aws:iam::123456789012:role/retrain", None)]
 
 
 def test_prepare_registry_repoints_seed(tmp_path):
